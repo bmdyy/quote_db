@@ -75,10 +75,8 @@ int add_quote(char *quote)
 int get_quote(int index, char **quote)
 {
     printf("[?] Getting quote #%d from db...\n", index);
-    int size = strlen(quotes[index]);
-    *quote = malloc(size);
     snprintf(*quote, QUOTE_SIZE, quotes[index]);
-    return size;
+    return strlen(quotes[index]);
 }
 
 /**
@@ -174,8 +172,8 @@ void handle_connection(void *sock)
         // Ask for a random quote
         time_t t;
         srand((unsigned)time(&t));
-        response_size = get_quote(rand() % num_quotes, &quote);
-        memcpy(response, quote, response_size);
+        //response_size = get_quote(rand() % num_quotes, &quote);
+        //memcpy(response, quote, response_size);
         break;
     case 901:;
         // Ask for a specific quote
@@ -188,6 +186,7 @@ void handle_connection(void *sock)
         }
         else
         {
+            quote = malloc(QUOTE_SIZE);
             response_size = get_quote(quote_index, &quote);
             memcpy(response, quote, response_size);
         }
