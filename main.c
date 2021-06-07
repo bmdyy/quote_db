@@ -2,8 +2,8 @@
 // Created in preparation for OSED
 // William Moody, 06.06.2021
 
-// Compile and run:
-//     gcc main.c -o main.exe -l ws2_32; .\main.exe
+// Compile (DEP, ASLR enabled):
+//     gcc main.c -o main.exe -l ws2_32 '-Wl,--nxcompat,--dynamicbase,--export-all-symbols'
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -59,6 +59,19 @@ void usage(char *prog_name)
 {
     printf("Usage: %s [-p PORT] [-h]\n", prog_name);
     exit(1);
+}
+
+/**
+ * A mysterious function which never gets called...
+ */
+void foo()
+{
+    asm (
+        "inc %eax\n"
+        "inc %ebx\n"
+        "inc %ecx\n"
+        "ret"
+    );
 }
 
 /**
