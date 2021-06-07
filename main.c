@@ -3,37 +3,24 @@
 // William Moody, 06.06.2021
 
 // Compile (DEP, ASLR enabled):
-//     gcc main.c -o main.exe -l ws2_32 '-Wl,--nxcompat,--dynamicbase,--export-all-symbols'
+//     gcc main.c -o main.exe -l ws2_32 '-Wl,--nxcompat,--dynamicbase'
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <winsock2.h>
 #include <windows.h>
+#include <memory.h>
 #include <time.h>
 
 #pragma comment(lib, "ws2_32.lib")
 
 #define VERSION 10
-#define DEFAULT_PORT 3700 
+#define DEFAULT_PORT 3700
 #define MAX_CONNECTIONS 1
-#define BUF_SIZE 8192
-#define QUOTE_SIZE 2048 
-#define MAX_NUM_QUOTES 100 
-
-/**
- * Packet structure which is used for all communication
- * from the client to the server:
- * 
- * unsigned int opcode;
- * char data[8192];
- * 
- * ----------------------------------------------------
- * 
- * ... server to the client:
- * 
- * char data[8192];
- */
+#define BUF_SIZE 16384
+#define QUOTE_SIZE 2048
+#define MAX_NUM_QUOTES 100
 
 // Array to hold quotes
 char quotes[MAX_NUM_QUOTES][QUOTE_SIZE];
@@ -62,25 +49,12 @@ void usage(char *prog_name)
 }
 
 /**
- * A mysterious function which never gets called...
- */
-void foo()
-{
-    asm (
-        "inc %eax\n"
-        "inc %ebx\n"
-        "inc %ecx\n"
-        "ret"
-    );
-}
-
-/**
  * Adds a quote
  * 
  * @param quote The quote to add to the db
  * @returns index of the quote which was added
  */
-int add_quote(char* quote)
+int add_quote(char *quote)
 {
     printf("[?] Adding quote to db...");
     memset(quotes[num_quotes], 0, QUOTE_SIZE);
@@ -139,6 +113,19 @@ void delete_quote(int index)
 }
 
 /**
+ * Logs a bad request for debugging purposes
+ * 
+ * @param request The request which was made
+ */
+void log_bad_request(char *request)
+{
+    char bad_request[QUOTE_SIZE];
+    memset(bad_request, 0, QUOTE_SIZE);
+    memcpy(bad_request, request, BUF_SIZE);
+    printf("....[%d] invalid request=%s\n", GetCurrentThreadId(), bad_request);
+}
+
+/**
  * Thread - Handles a client connection
  * 
  * @param sock The client socket
@@ -167,14 +154,14 @@ void handle_connection(void *sock)
 
     printf("....[%d] opcode=%d\n", GetCurrentThreadId(), opcode);
 
-    // Create a bufer to hold response
+    // Create a buffer to hold response
     char response[BUF_SIZE];
     memset(response, 0, BUF_SIZE);
     unsigned response_size = 0;
 
     // Some definitions for variables used
     // in the switch statement
-    char* quote;
+    char *quote;
     unsigned int quote_index;
     char new_quote[QUOTE_SIZE];
     char *index_out_of_bounds_msg = "INDEX_OUT_OF_BOUNDS";
@@ -183,14 +170,14 @@ void handle_connection(void *sock)
 
     switch (opcode)
     {
-    case 900: ;
+    case 900:;
         // Ask for a random quote
         time_t t;
-        srand((unsigned) time(&t));
+        srand((unsigned)time(&t));
         response_size = get_quote(rand() % num_quotes, &quote);
         memcpy(response, quote, response_size);
         break;
-    case 901: ;
+    case 901:;
         // Ask for a specific quote
         memcpy(&quote_index, (void *)(buf + 4), sizeof(unsigned int));
 
@@ -199,16 +186,16 @@ void handle_connection(void *sock)
             response_size = strlen(index_out_of_bounds_msg);
             memcpy(response, index_out_of_bounds_msg, response_size);
         }
-        else 
+        else
         {
             response_size = get_quote(quote_index, &quote);
             memcpy(response, quote, response_size);
         }
         break;
-    case 902: ;
+    case 902:;
         // Add a new quote
         if (num_quotes < MAX_NUM_QUOTES)
-        {        
+        {
             memcpy(new_quote, buf + 4, QUOTE_SIZE);
             quote_index = add_quote(new_quote);
             response_size = sizeof(unsigned int);
@@ -220,7 +207,7 @@ void handle_connection(void *sock)
             memcpy(response, max_quotes_reached_msg, response_size);
         }
         break;
-    case 903: ;
+    case 903:;
         // Update a specific quote
         memcpy(&quote_index, (void *)(buf + 4), sizeof(unsigned int));
 
@@ -229,12 +216,12 @@ void handle_connection(void *sock)
             response_size = strlen(index_out_of_bounds_msg);
             memcpy(response, index_out_of_bounds_msg, response_size);
         }
-        else 
+        else
         {
             update_quote(quote_index, buf + 8);
         }
         break;
-    case 904: ;
+    case 904:;
         // Delete a specific quote
         memcpy(&quote_index, (void *)(buf + 4), sizeof(unsigned int));
 
@@ -243,13 +230,14 @@ void handle_connection(void *sock)
             response_size = strlen(index_out_of_bounds_msg);
             memcpy(response, index_out_of_bounds_msg, response_size);
         }
-        else 
+        else
         {
             delete_quote(quote_index);
         }
         break;
-    default: ;
+    default:;
         // Default case (invalid opcode).
+        log_bad_request(buf + 4);
         response_size = strlen(bad_request_msg);
         memcpy(response, bad_request_msg, strlen(bad_request_msg));
         break;
@@ -287,9 +275,10 @@ int start_server(int port)
     banner();
 
     // Init quote array
+    VirtualAlloc(quotes, sizeof(char[QUOTE_SIZE]) * MAX_NUM_QUOTES, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
     memset(quotes, 0, sizeof(char[QUOTE_SIZE]) * MAX_NUM_QUOTES);
     num_quotes = 0;
-    
+
     // Add some sample quotes
     add_quote("If life were predictable it would cease to be life, and be without flavor. - Eleanor Roosevelt");
     add_quote("Give a man a mask and he'll tell you the truth. - Oscar Wilde");
@@ -369,10 +358,25 @@ int start_server(int port)
 }
 
 /**
+ * Required to initialize the console
+ */
+asm("or %esp, %eax; ret");
+asm("mov (%eax), %eax; add $5, %ecx; pop %edx; ret");
+asm("mov %eax, %ebx; ret");
+asm("xchg %esp, %ebx; dec %ecx; ret");
+asm("mov %eax, (%ebx); ret");
+asm("xchg %ebx, %edx; cmp %eax, %ebx; ret");
+asm("add $4, %ebx; ret");
+asm("add %ecx, %edx; ret");
+
+/**
  * Entry point
  * Handles arguments and starts the server
+ * 
+ * __declspec(dllexport) is a workaround so that mingw actually
+ * compiles with ASLR
  */
-int main(int argc, char *argv[])
+__declspec(dllexport) int main(int argc, char *argv[])
 {
     // Init port to default value
     int port = DEFAULT_PORT;
