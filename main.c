@@ -3,7 +3,7 @@
 // William Moody, 06.06.2021
 
 // Compile (DEP, ASLR enabled):
-//     gcc main.c -o main.exe -l ws2_32 '-Wl,--nxcompat,--dynamicbase'
+//     gcc main.c -o main.exe -l ws2_32 -Wl,--nxcompat,--dynamicbase
 
 #include <stdio.h>
 #include <stdlib.h>

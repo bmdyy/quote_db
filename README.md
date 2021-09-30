@@ -19,13 +19,13 @@ To compile without any protections:
 - `gcc main.c -o main.exe -l ws2_32`
 
 To compile with DEP:
-- `gcc main.c -o main.exe -l ws2_32 '-Wl,--nxcompat,'`
+- `gcc main.c -o main.exe -l ws2_32 -Wl,--nxcompat`
 
 To compile with ASLR:
-- `gcc main.c -o main.exe -l ws2_32 '-Wl,--dynamicbase'`
+- `gcc main.c -o main.exe -l ws2_32 -Wl,--dynamicbase`
 
 To compile with DEP + ASLR:
-- `gcc main.c -o main.exe -l ws2_32 '-Wl,--nxcompat,--dynamicbase'`
+- `gcc main.c -o main.exe -l ws2_32 -Wl,--nxcompat,--dynamicbase`
 
 ## How to run
 
