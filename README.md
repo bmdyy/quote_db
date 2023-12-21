@@ -16,16 +16,16 @@ You should not look at the source code until solved, if you want to practice rev
 ## How to compile
 
 To compile without any protections:
-- `gcc main.c -o main.exe -l ws2_32`
+- `gcc -w main.c -o main.exe -l ws2_32`
 
 To compile with DEP:
-- `gcc main.c -o main.exe -l ws2_32 -Wl,--nxcompat`
+- `gcc -w main.c -o main.exe -l ws2_32 -Wl,--nxcompat`
 
 To compile with ASLR:
-- `gcc main.c -o main.exe -l ws2_32 -Wl,--dynamicbase`
+- `gcc -w main.c -o main.exe -l ws2_32 -Wl,--dynamicbase`
 
 To compile with DEP + ASLR:
-- `gcc main.c -o main.exe -l ws2_32 -Wl,--nxcompat,--dynamicbase`
+- `gcc -w main.c -o main.exe -l ws2_32 -Wl,--nxcompat,--dynamicbase`
 
 ## How to run
 
